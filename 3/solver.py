@@ -10,7 +10,7 @@ def load_fault_messages(filepath: str) -> list[int]:
 M = 8684345636908686698383058753930515845376216074491905095625386038921316376845905096948974184280037158397773209920391529649784574906985754450477350014610356222003127212466169135522169279492231954962510144676909892095883819057606351964935618910468692572435658048566378696492965708241737271579660195263078472751
 C = 374015834710561043810344051134135
 
-# e값 추측에 대한 검증
+# e값 추측에 대한 검증 (가장 많이 사용되는 e값인 0x10001로 추측)
 # M^e mod N 이 C와 동일하면 정확한 추측으로 판정
 assert pow(M, e, N) == C
 
@@ -18,7 +18,15 @@ assert pow(M, e, N) == C
 # 처리에 용이하게 (M': 오류 메세지, k: 오류 위치) 형태로 변환
 fault_messages = load_fault_messages('./fault_message.txt')
 fault_index = [5, 11, 18, 24, 30, 37, 43, 51, 57, 63, 70, 78, 84, 90, 98, 105, 112, 120, 125, 131, 137, 144, 150, 156, 161, 169, 176, 180, 187, 193, 201, 205, 212, 220, 228, 235, 239, 246, 252, 258, 265, 269, 277, 283, 290, 295, 301, 307, 311, 318, 326, 330, 337, 345, 353, 360, 365, 370, 377, 383, 389, 397, 405, 409, 413, 421, 429, 433, 441, 446, 454, 461, 468, 476, 483, 490, 497, 504, 510, 517, 524, 531, 538, 546, 551, 559, 562, 569, 577, 584, 590, 596, 599, 606, 609, 617, 624, 631, 638, 642, 648, 653, 658, 662, 670, 676, 681, 689, 693, 700, 708, 716, 723, 730, 738, 746, 753, 758, 763, 769, 778, 784, 790, 796, 804, 812, 819, 826, 831, 838, 844, 850, 858, 865, 869, 876, 883, 890, 897, 903, 910, 917, 925, 932, 939, 945, 950, 954, 959, 963, 969, 976, 983, 989, 993, 998, 1005, 1010, 1016, 1021]
-faults = zip(fault_messages, fault_index)
+faults = list(zip(fault_messages, fault_index))
+
+# 맨 앞에 k가 0인 경우 (개인키에 에러가 없어 메세지가 정확히 복호화 된 경우) 추가
+# 추가해야지 하위 5비트까지 복구 가능
+message_index_pairs = [(M, 0)] + faults
+
+# d는 1024-bit 키로 문제에서 주어짐
+BIT_LENGTH = 1024 - 1
+d = '?'*BIT_LENGTH
 
 # 개인키 복구 전략
 # 오류 위치가 k인 경우 오류가 발생한 개인키는 ?...?(1024-k개)0...0(k개) 의 형식으로 표현 가능 (키가 1024-bit 사이즈기 때문)
@@ -29,7 +37,29 @@ faults = zip(fault_messages, fault_index)
 #     M과 동일한 경우 해당 비트가 원래 개인키의 비트와 동일한 것으로 판단
 # 이는 오류 위치간의 차이가 작기 때문에 가능함
 # 오류 위치간 차이의 평균은 6.389, 최대값은 9이기 때문에 각 스텝당 평균적으로 2^6.389번, 최악의 경우 2^9번 전수조사를 진행해야 하며, 현대 컴퓨터의 처리속도를 고려하였을 때 짧은 시간 내에 해결 가능함
-
-
-
-assert pow(C, d, N)
+# k가 큰 순서대로 오류 메세지 이용해 개인키 복구 진행
+for Mp, k in message_index_pairs[::-1]:
+    # d' = d...d?...?0...0
+    restored = d[0:(BIT_LENGTH-d.count('?'))]
+    bits_to_restore = BIT_LENGTH-len(restored)-k
+    error = '?'*k
+    # ?...? 부분에 대해서 전수조사 진행
+    for brute_force in range(2**bits_to_restore):
+        possible_bits = bin(brute_force)[2:].zfill(bits_to_restore)
+        dp = restored + possible_bits + error
+        dp_int = int(dp.replace('?', '0'), 2)
+        #print(f"  [*] Trying d': {dp}")
+        if pow(C, dp_int, N) == Mp:
+            print(f"[+] Successful guess with partial bits: {possible_bits}")
+            print(f"[*] Current status of d: {d}")
+            d = dp
+            break
+        
+# d를 정상적으로 복구한 경우 C^d mod N = M이 성립
+d_int = int(d, 2)
+print(f"[+] Possible private key found: d = {hex(d_int)}")
+print("[*] Checking with C^d mod N")
+if pow(C, d_int, N) == M:
+    print("[+] Private key recovery successful - assertion matched (C^d mod N = M).")
+else:
+    print("[0] Private key recovery unsuccessful - assertion failed (C^d mod N != M).")
