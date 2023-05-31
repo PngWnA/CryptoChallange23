@@ -11,6 +11,7 @@ from torchvision import models #loading model
 from utils import get_imagenet_data #loading model
 from robustbench.utils import clean_accuracy #loading model: A collection of robust models for RobustBench: a standardized adversarial robustness benchmark
 
+import numpy as np 
 
 
 def vmni_ditisi_fgsm(attack_type, model, x, y, target_label=-1, num_iter=20, max_epsilon=16, step_size=1, mu=1.0,
@@ -132,9 +133,9 @@ def vmni_ditisi_fgsm(attack_type, model, x, y, target_label=-1, num_iter=20, max
 images, labels = get_imagenet_data()
 print('[Data loaded]') #loading data
 
-device = "cuda" 
-model = models.resnet18(pretrained=True).to(device).eval()
-acc = clean_accuracy(model, images.to(device), labels.to(device))
+#device = "cuda" #change device from 'cuda' to 'cuda or cpu'
+model = models.resnet18(pretrained=True).to("cuda:0" if torch.cuda.is_available() else "cpu").eval()
+acc = clean_accuracy(model, images.to("cuda:0" if torch.cuda.is_available() else "cpu"), labels.to("cuda:0" if torch.cuda.is_available() else "cpu"))
 print('[Model loaded]') #loading model
 print('Acc: %2.2f %%'%(acc*100))
 
