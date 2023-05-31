@@ -114,9 +114,10 @@ def readcsv(datei):
     return(X,Y,Z);
 
 #baseline training data generator
-def make_train_data(n, nr, diff=(0x0040,0)):
+def make_train_data(n, nr, diff=(0x0040,0), fixed_key = None):
   Y = np.frombuffer(urandom(n), dtype=np.uint8); Y = Y & 1;
-  keys = np.frombuffer(urandom(8*n),dtype=np.uint16).reshape(4,-1);
+  # fixed_key 사용 가능하도록 패치
+  keys = np.frombuffer(urandom(8*n),dtype=np.uint16).reshape(4,-1) if fixed_key is None else np.frombuffer(fixed_key, dtype=np.uint16).repeat(n).reshape(4, -1);
   plain0l = np.frombuffer(urandom(2*n),dtype=np.uint16);
   plain0r = np.frombuffer(urandom(2*n),dtype=np.uint16);
   plain1l = plain0l ^ diff[0]; plain1r = plain0r ^ diff[1];
@@ -154,3 +155,9 @@ def real_differences_data(n, nr, diff=(0x0040,0)):
   #convert to input data for neural networks
   X = convert_to_binary([ctdata0l, ctdata0r, ctdata1l, ctdata1r]);
   return(X,Y);
+
+def int64_array_to_binary(arr):
+    return [np.array([int(bit, 2) for bit in np.binary_repr(X).zfill(WORD_SIZE())]) for X in arr]
+
+def concat(X, Y):
+    return np.concatenate([X, Y])
