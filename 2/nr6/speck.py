@@ -13,18 +13,6 @@ def ALPHA():
 def BETA():
     return(2);
 
-def sp_list():
-    return np.empty(0, dtype=np.uint8);
-
-def sp_list_append(X, Y):
-    return np.append([X], [Y], axis=0)
-
-def int64_array_to_binary(arr):
-    return [np.array([int(bit, 2) for bit in np.binary_repr(X).zfill(WORD_SIZE())], dtype=np.uint8) for X in arr]
-
-def concat(X, Y):
-    return np.concatenate([np.array(X), np.array(Y)], dtype=np.uint8)
-
 MASK_VAL = 2 ** WORD_SIZE() - 1;
 
 def shuffle_together(l):
@@ -126,10 +114,9 @@ def readcsv(datei):
     return(X,Y,Z);
 
 #baseline training data generator
-def make_train_data(n, nr, diff=(0x0040,0), fixed_key = None, gen_real_ciphertext_pair = False):
-  Y = np.frombuffer(urandom(n), dtype=np.uint8) if gen_real_ciphertext_pair == False else np.ones(n, dtype=np.uint8); Y = Y & 1;
-  # fixed_key 사용 가능하도록 패치
-  keys = np.frombuffer(urandom(8*n),dtype=np.uint16).reshape(4,-1) if fixed_key is None else np.frombuffer(fixed_key, dtype=np.uint16).repeat(n).reshape(4, -1);
+def make_train_data(n, nr, diff=(0x0040,0)):
+  Y = np.frombuffer(urandom(n), dtype=np.uint8); Y = Y & 1;
+  keys = np.frombuffer(urandom(8*n),dtype=np.uint16).reshape(4,-1);
   plain0l = np.frombuffer(urandom(2*n),dtype=np.uint16);
   plain0r = np.frombuffer(urandom(2*n),dtype=np.uint16);
   plain1l = plain0l ^ diff[0]; plain1r = plain0r ^ diff[1];
