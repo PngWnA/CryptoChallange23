@@ -1,9 +1,12 @@
 import os
+import json
+import numpy as np
 
 from keras.models import model_from_json
 from keras.utils import plot_model
+
 import nr6.speck as sp
-import numpy as np
+
 
 def convert_to_uint16(X):
     x, y = np.packbits(X)
@@ -37,11 +40,10 @@ print(f"[*] Scheduled subkeys: k1, ..., k7 = {list(map(lambda x: hex(x[0]), subk
 print(f"[*] Target subkey to recover: k7 = {hex(subkeys[-1][0])}")
 
 # 공격에 필요한 암호문 쌍 선택 진행
-TEST_SIZE = 1
-ciphertext_pairs_r7, _ = sp.make_train_data(TEST_SIZE, ROUND)
-if _[0] != 1:
-    exit()
+TEST_SIZE = 8
+ciphertext_pairs_r7, _ = sp.make_train_data(TEST_SIZE, ROUND, inject_key=master_key, force_diff=True, save_keys=True)
 
+predictions = []
 for ciphertext_pair_r7 in ciphertext_pairs_r7:
     C0, C1 = ciphertext_pair_r7[:32], ciphertext_pair_r7[32:]
     C0l, C0r = convert_to_uint16(C0[:16]), convert_to_uint16(C0[16:])
@@ -56,6 +58,20 @@ for ciphertext_pair_r7 in ciphertext_pairs_r7:
         
         D0l, D0r = sp.dec_one_round((C0l, C0r), possible_subkey_r7)
         D1l, D1r = sp.dec_one_round((C1l, C1r), possible_subkey_r7)
-        print(f"[*] -> {D0l} {D0r} | {D1l} {D1r} (using subkey={bin(possible_subkey_r7)[2:].zfill(SUBKEY_SIZE)})")
+        #print(f"[*] -> {D0l} {D0r} | {D1l} {D1r} (using subkey={bin(possible_subkey_r7)[2:].zfill(SUBKEY_SIZE)})")
         possible_ciphertext_pairs_r6 = np.append(possible_ciphertext_pairs_r6, sp.convert_to_binary([D0l, D0r, D1l, D1r]), axis=0)
     prediction = nr6_speck_distinguisher.predict(possible_ciphertext_pairs_r6)
+    predictions.append(prediction > 0.5)
+
+result = dict()
+for index in range(2**16):
+    result[index] = 0
+    
+for prediction in predictions:
+    index = 0
+    for z in prediction:
+        if z[0] == True:
+            result[index] += 1
+        index += 1
+            
+open("result.txt", "w").write(json.dumps(result, indent=2))
