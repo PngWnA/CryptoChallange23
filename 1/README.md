@@ -22,4 +22,6 @@ Place pictures under data > imagenet > "foldername"
 # Test version
 ```
 Torch 1.13.1
+Torchvision 0.12.0
+Timm 0.6.13
 ```
