@@ -114,9 +114,9 @@ def readcsv(datei):
     return(X,Y,Z);
 
 #baseline training data generator
-def make_train_data(n, nr, diff=(0x0040,0), inject_key:np.ndarray = None, force_diff=False, save_keys=False):
+def make_train_data(n, nr, diff=(0x0040,0), inject_key:np.ndarray = None, force_diff=False):
   Y = np.frombuffer(urandom(n), dtype=np.uint8); Y = Y & 1;
-  if force_diff is True:
+  if force_diff == True:
       Y = Y | 1;
   keys = np.frombuffer(urandom(8*n),dtype=np.uint16).reshape(4,-1);
   if inject_key is not None:
@@ -128,8 +128,6 @@ def make_train_data(n, nr, diff=(0x0040,0), inject_key:np.ndarray = None, force_
   plain1l[Y==0] = np.frombuffer(urandom(2*num_rand_samples),dtype=np.uint16);
   plain1r[Y==0] = np.frombuffer(urandom(2*num_rand_samples),dtype=np.uint16);
   ks = expand_key(keys, nr);
-  if save_keys is True:
-      open("keys.txt", "w").write(str(ks))
   ctdata0l, ctdata0r = encrypt((plain0l, plain0r), ks);
   ctdata1l, ctdata1r = encrypt((plain1l, plain1r), ks);
   X = convert_to_binary([ctdata0l, ctdata0r, ctdata1l, ctdata1r]);
