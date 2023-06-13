@@ -91,72 +91,41 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 #define F(x) XOR(AND(_ROL(x, 1), _ROL(x, 8)), _ROL(x, 2))
 
 void new_key_gen_AVX2(uint32_t* master_key, uint32_t* session_key) {
-    uint32_t i = 0, x[8];
-    __m256i k1, k2;
+    uint32_t i = 0;
+    __m256i k1, k2, t1, t2;
 
-    k1 = _mm256_set_epi32(master_key[14], master_key[12], master_key[10], master_key[8], master_key[6], master_key[4], master_key[2], master_key[0]);
-    k2 = _mm256_set_epi32(master_key[15], master_key[13], master_key[11], master_key[9], master_key[7], master_key[5], master_key[3], master_key[1]);
+    t1 = LOAD(master_key);
+    t2 = LOAD(&master_key[8]);
+    
+    k1 = _mm256_shuffle_ps(t1, t2, 0x88);
+    k2 = _mm256_shuffle_ps(t1, t2, 0xdd);
 
     for (i = 0; i < NUM_ROUND; i++) {
         k1 = XOR(ADD(_ROR(k1, 8), k2), _mm256_set1_epi32(i));
         k2 = XOR(k1, _ROL(k2, 3));
-
-        STORE(x, k2);
-        session_key[i] = x[0];
-        session_key[80 + i] = x[1];
-        session_key[160 + i] = x[2];
-        session_key[240 + i] = x[3];
-        session_key[320 + i] = x[4];
-        session_key[400 + i] = x[5];
-        session_key[480 + i] = x[6];
-        session_key[560 + i] = x[7];
+        STORE(&session_key[i << 3], k2);
     }
 }
 
 // check input_length --> multiple of 8 * 64-bit
 void new_block_cipher_AVX2(uint32_t* input, uint32_t* session_key, uint32_t* output) {
     uint32_t i = 0, x1[8], x2[8];
-    __m256i pt1, pt2, t;
+    __m256i pt1, pt2, t, t1, t2;
 
-    pt1 = _mm256_set_epi32(input[14], input[12], input[10], input[8], input[6], input[4], input[2], input[0]);
-    pt2 = _mm256_set_epi32(input[15], input[13], input[11], input[9], input[7], input[5], input[3], input[1]);
+    t1 = LOAD(input);
+    t2 = LOAD(&input[8]);
+    
+    pt1 = _mm256_shuffle_ps(t1, t2, 0x88);
+    pt2 = _mm256_shuffle_ps(t1, t2, 0xdd);
 
-    for (i = 0; i < NUM_ROUND; i++) {
-        t = XOR(_mm256_set_epi32(session_key[560 + i],
-                                    session_key[480 + i],
-                                    session_key[400 + i],
-                                    session_key[320 + i],
-                                    session_key[240 + i],
-                                    session_key[160 + i],
-                                    session_key[80 + i],
-                                    session_key[i]),
-                   XOR(XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), _ROL(pt1, 8))), pt2));
-        pt2 = pt1;
-        pt1 = t;
+    for (i = 0; i < NUM_ROUND; i += 2) {
+        t = XOR(LOAD(&session_key[i << 3]), XOR(XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), _ROL(pt1, 8))), pt2));
+        pt1 = XOR(LOAD(&session_key[(i | 1) << 3]), XOR(XOR(_ROL(t, 2), AND(_ROL(t, 1), _ROL(t, 8))), pt1));
+        pt2 = t;
     }
 
-    STORE(x1, pt1);
-    STORE(x2, pt2);
-
-    output[0] = x1[0];
-    output[2] = x1[1];
-    output[4] = x1[2];
-    output[6] = x1[3];
-
-    output[8] = x1[4];
-    output[10] = x1[5];
-    output[12] = x1[6];
-    output[14] = x1[7];
-
-    output[1] = x2[0];
-    output[3] = x2[1];
-    output[5] = x2[2];
-    output[7] = x2[3];
-
-    output[9] = x2[4];
-    output[11] = x2[5];
-    output[13] = x2[6];
-    output[15] = x2[7];
+    STORE(output, _mm256_shuffle_epi32(_mm256_shuffle_ps(pt1, pt2, 0x44), 0xd8));
+    STORE(&output[8], _mm256_shuffle_epi32(_mm256_shuffle_ps(pt1, pt2, 0xee), 0xd8));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
