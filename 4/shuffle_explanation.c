@@ -17,31 +17,30 @@ void print(__m256i x) {
 
 int main() {
     __m256i a, b, x, y, u, v;
-    uint32_t i = 0, t1[8], t2[8];
-    a = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
-    b = _mm256_set_epi32(15, 14, 13, 12, 11, 10, 9, 8);
+    uint32_t i = 0;
+    uint32_t t1[8] = {0, 1, 2, 3, 4, 5, 6, 7}, t2[8] = {8, 9, 10, 11, 12, 13, 14, 15};
+
+    a = _mm256_loadu_si256((__m256i*)t1);
+    b = _mm256_loadu_si256((__m256i*)t2);
 
     print(a);
     print(b);
+    printf("\n");
 
-    x = _mm256_shuffle_ps(a, b, 0x88);
-    y = _mm256_shuffle_ps(a, b, 0xdd);
+    x = _mm256_shuffle_ps(a, b, 0b10001000);
+    y = _mm256_shuffle_ps(a, b, 0b11011101);
     print(x);
     print(y);
+    printf("\n");
 
-    u = _mm256_shuffle_ps(x, y, 0x44);
-    v = _mm256_shuffle_ps(x, y, 0xee);
+    u = _mm256_shuffle_ps(x, y, 0b01000100);
+    v = _mm256_shuffle_ps(x, y, 0b11101110);
     print(u);
     print(v);
-    
-    x = _mm256_shuffle_epi32(u, 0xd8);
-    y = _mm256_shuffle_epi32(v, 0xd8);
+    printf("\n");
+
+    x = _mm256_shuffle_epi32(u, 0b11011000);
+    y = _mm256_shuffle_epi32(v, 0b11011000);
     print(x);
     print(y);
-
-    // u = _mm256_set_epi32(14, 12, 10, 8, 6, 4, 2, 0);
-    // v = _mm256_set_epi32(15, 13, 11, 9, 7, 5, 3, 1);
-
-    // print(u);
-    // print(v);
 }

@@ -33,6 +33,11 @@
 #define SHIFT_L(x, r) _mm256_slli_epi32(x, r)
 #define SHIFT_R(x, r) _mm256_srli_epi32(x, r)
 
+#define SCALAR(x) _mm256_set1_epi32(x)
+#define SHUFFLE_2(x, y, i) ((__m256i)_mm256_shuffle_ps(x, y, i))
+#define SHUFFLE32(x, i) _mm256_shuffle_epi32(x, i)
+#define _ROL(x, r) OR(SHIFT_L(x, r), SHIFT_R(x, 32 - r))
+
 int64_t cpucycles(void) {
     unsigned int hi, lo;
     __asm__ __volatile__("rdtsc\n\t"
@@ -86,46 +91,45 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-#define _ROR(x, r) OR(SHIFT_R(x, r), SHIFT_L(x, 32 - r))
-#define _ROL(x, r) OR(SHIFT_L(x, r), SHIFT_R(x, 32 - r))
-#define F(x) XOR(AND(_ROL(x, 1), _ROL(x, 8)), _ROL(x, 2))
-
-void new_key_gen_AVX2(uint32_t* master_key, uint32_t* session_key) {
+void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256i* r8, __m256i* l8) {
     uint32_t i = 0;
-    __m256i k1, k2, t1, t2;
+    __m256i k1, k2, pt1, pt2, t1, t2;
 
-    t1 = LOAD(master_key);
+    // Load Key
+    t1 = LOAD( master_key   );
     t2 = LOAD(&master_key[8]);
-    
-    k1 = _mm256_shuffle_ps(t1, t2, 0x88);
-    k2 = _mm256_shuffle_ps(t1, t2, 0xdd);
+
+    // Shuffle s.t. operands are aligned to be processed together
+    // k1: first element of each block
+    // k2: second element of each block
+    k1 = SHUFFLE_2(t1, t2, 0x88);
+    k2 = SHUFFLE_2(t1, t2, 0xdd);
+
+    // Load Plaintext
+    t1 = LOAD( input );
+    t2 = LOAD(&input[8]);
+
+    // Shuffle s.t. operands are aligned to be processed together
+    // k1: first element of each block
+    // k2: second element of each block
+    pt1 = SHUFFLE_2(t1, t2, 0x88);
+    pt2 = SHUFFLE_2(t1, t2, 0xdd);
 
     for (i = 0; i < NUM_ROUND; i++) {
-        k1 = XOR(ADD(_ROR(k1, 8), k2), _mm256_set1_epi32(i));
+        // Key Scheduler
+        k1 = XOR(ADD(SHUFFLE8(k1, *r8), k2), SCALAR(i));
         k2 = XOR(k1, _ROL(k2, 3));
-        STORE(&session_key[i << 3], k2);
-    }
-}
 
-// check input_length --> multiple of 8 * 64-bit
-void new_block_cipher_AVX2(uint32_t* input, uint32_t* session_key, uint32_t* output) {
-    uint32_t i = 0, x1[8], x2[8];
-    __m256i pt1, pt2, t, t1, t2;
-
-    t1 = LOAD(input);
-    t2 = LOAD(&input[8]);
-    
-    pt1 = _mm256_shuffle_ps(t1, t2, 0x88);
-    pt2 = _mm256_shuffle_ps(t1, t2, 0xdd);
-
-    for (i = 0; i < NUM_ROUND; i += 2) {
-        t = XOR(LOAD(&session_key[i << 3]), XOR(XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), _ROL(pt1, 8))), pt2));
-        pt1 = XOR(LOAD(&session_key[(i | 1) << 3]), XOR(XOR(_ROL(t, 2), AND(_ROL(t, 1), _ROL(t, 8))), pt1));
-        pt2 = t;
+        // Block Cipher
+        t1 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, *l8)))));
+        pt2 = pt1;
+        pt1 = t1;
     }
 
-    STORE(output, _mm256_shuffle_epi32(_mm256_shuffle_ps(pt1, pt2, 0x44), 0xd8));
-    STORE(&output[8], _mm256_shuffle_epi32(_mm256_shuffle_ps(pt1, pt2, 0xee), 0xd8));
+    // Shuffle s.t. elements have same position as one right after Load
+    // Store Ciphertext
+    STORE( output   , SHUFFLE32(SHUFFLE_2(pt1, pt2, 0x44), 0xd8));
+    STORE(&output[8], SHUFFLE32(SHUFFLE_2(pt1, pt2, 0xee), 0xd8));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -188,11 +192,15 @@ int main() {
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
-    // These functions (new_key_gen, new_block_cipher) should be replaced to "new_key_gen_AVX2" and "new_block_cipher_AVX2".
-    for (i = 0; i < BLOCK_SIZE; i += 8) {
-        new_key_gen_AVX2(key_AVX[i], session_key_AVX[i]);
-        new_block_cipher_AVX2(input_AVX[i], session_key_AVX[i], output_AVX[i]);  // this is for testing
+    __m256i r8 = _mm256_set_epi32(
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
+    __m256i l8 = _mm256_set_epi32(
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
 
+    for (i = 0; i < BLOCK_SIZE; i += 8) {
+        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i], &r8, &l8);
     }
     ///////////////////////////////////////////////////////////////////////////////////////////
 
