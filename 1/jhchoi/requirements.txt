@@ -1,0 +1,13 @@
+geotorch==0.3.0
+image==1.5.33
+imageio==2.25.0
+robustbench @ git+https://github.com/RobustBench/robustbench.git@fcf0adfe78331b694a597c4d68b955145cb6a390
+timm==0.6.13
+torch==1.11.0+cu113
+torchattacks==3.4.0
+torchaudio==0.11.0+cu113
+torchdiffeq==0.2.3
+torchmetrics==0.11.1
+torchvision==0.12.0+cu113
+virtualenv==20.16.3
+virtualenv-clone==0.5.7
