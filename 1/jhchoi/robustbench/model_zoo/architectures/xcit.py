@@ -76,7 +76,7 @@ default_cfgs = {
 }
 
 
-def adapt_model_patches(model: xcit.XCiT, new_patch_size: int):
+def adapt_model_patches(model: xcit.Xcit, new_patch_size: int):
     to_divide = model.patch_embed.patch_size / new_patch_size
     assert int(
         to_divide

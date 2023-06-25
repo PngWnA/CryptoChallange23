@@ -11,14 +11,13 @@ def get_imagenet_data():
     MEAN = [0.485, 0.456, 0.406]
     STD = [0.229, 0.224, 0.225]
     # https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json
-    class_idx = json.load(open("C:/Users/zzzmi/OneDrive/바탕 화면/CryptoChallange23/1/data/imagenet_class_index.json"))
+    class_idx = json.load(open("./data/imagenet_class_index.json"))
     idx2label = [class_idx[str(k)][1] for k in range(len(class_idx))]
     transform = transforms.Compose([
         transforms.Resize((299, 299)),
-        transforms.ToTensor(), # ToTensor : [0, 255] -> [0, 1]
-        transforms.Normalize(mean=MEAN, std=STD)
+        transforms.ToTensor() # ToTensor : [0, 255] -> [0, 1]
     ])
-    imagnet_data = image_folder_custom_label(root='C:/Users/zzzmi/OneDrive/바탕 화면/CryptoChallange23/1/data/imagenet/', 
+    imagnet_data = image_folder_custom_label(root='./data/imagenet/', 
                                              transform=transform,
                                              idx2label=idx2label)
     data_loader = torch.utils.data.DataLoader(imagnet_data, batch_size=1, shuffle=False)
