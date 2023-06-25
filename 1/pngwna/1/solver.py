@@ -23,7 +23,7 @@ print(f"[*] Loaded human readable output label mapping (total {len(labels)} labe
 
 # ImageNet 데이터 로드
 # 아래 폴더에서 임의의 사진 1개 로드
-TARGET_DIR = "target"
+TARGET_DIR = "dataset"
 files = os.listdir(TARGET_DIR)
 file = random.choice(files)
 img = Image.open(os.path.join(TARGET_DIR, file))
@@ -75,6 +75,7 @@ if random_start:
     adv_image = torch.clamp(adv_image, 0, 1)
     print(f"[*] Start image' = image + ε, (|ε| < {eps})")
 else:
+    adv_image = torch.clamp(image, 0, 1)
     print(f"[*] Start image' = image + ε, (ε = 0)")
 
 adv_image.requires_grad = True
@@ -97,6 +98,7 @@ prediction = model(adv_image)
 values, indexes = torch.topk(prediction, 5)
 classifications = [labels[index] for index in indexes[0].tolist()]
 adv_top1 = classifications[0]
+print(f"[*] Adversarial image is classified as '{adv_top1}'")
 
 # 공격 성공 검증
 if origin_top1 != adv_top1:
@@ -107,14 +109,14 @@ else:
 # 원본, 노이즈, 공격 이미지 출력
 _, figures = plt.subplots(1, 3, figsize=(15, 5))
 
-figures[0].imshow(image.squeeze(0).permute(1, 2, 0))
+figures[0].imshow(image.squeeze(0).permute(1, 2, 0).clamp(0, 1))
 figures[0].set_title(f"Original image: classified as {origin_top1}")
 
 MULTIPLIER = 50
 figures[1].imshow(perturbation.squeeze(0).permute(1, 2, 0).clip(0, 255) * MULTIPLIER)
 figures[1].set_title(f"Perturbation: amplified by x{MULTIPLIER}")
 
-figures[2].imshow(adv_image.squeeze(0).permute(1, 2, 0))
+figures[2].imshow(adv_image.squeeze(0).permute(1, 2, 0).clamp(0, 1))
 figures[2].set_title(f"Adversarial image: classified as {adv_top1}")
 
 plt.show()
