@@ -50,7 +50,7 @@ int64_t cpucycles(void) {
 // 32-bit x 22 rounds session key
 void new_key_gen(uint32_t* master_key, uint32_t* session_key) {
     uint32_t i = 0;
-    uint32_t k1, k2;
+    uint32_t k1, k2, tmp;
 
     k1 = master_key[0];
     k2 = master_key[1];
@@ -67,7 +67,7 @@ void new_key_gen(uint32_t* master_key, uint32_t* session_key) {
 
 void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) {
     uint32_t i = 0;
-    uint32_t pt1, pt2, tmp1, tmp2, tmp;
+    uint32_t pt1, pt2, tmp1, tmp2;
 
     pt1 = input[0];
     pt2 = input[1];
@@ -123,16 +123,14 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
         k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        t1 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, l8)))));
-        pt2 = t1;
-        
+        pt2 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, l8)))));
+
          // Key Scheduler
-        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i + 1));
+        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i | 1));
         k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        t1 = XOR(k2, XOR(pt1, XOR(_ROL(pt2, 2), AND(_ROL(pt2, 1), SHUFFLE8(pt2, l8)))));
-        pt1 = t1;
+        pt1 = XOR(k2, XOR(pt1, XOR(_ROL(pt2, 2), AND(_ROL(pt2, 1), SHUFFLE8(pt2, l8)))));
     }
 
     // Shuffle s.t. elements have same position as one right after Load
