@@ -1,4 +1,4 @@
-#include <emmintrin.h>
+c#include <emmintrin.h>
 #include <immintrin.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -67,7 +67,7 @@ void new_key_gen(uint32_t* master_key, uint32_t* session_key) {
 
 void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) {
     uint32_t i = 0;
-    uint32_t pt1, pt2, tmp1, tmp2;
+    uint32_t pt1, pt2, tmp1, tmp2, tmp;
 
     pt1 = input[0];
     pt2 = input[1];
@@ -91,7 +91,9 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256i* r8, __m256i* l8) {
+__m256i r8, l8;
+
+void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     uint32_t i = 0;
     __m256i k1, k2, pt1, pt2, t1, t2;
 
@@ -115,14 +117,21 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256
     pt1 = SHUFFLE_2(t1, t2, 0x88);
     pt2 = SHUFFLE_2(t1, t2, 0xdd);
 
-    for (i = 0; i < NUM_ROUND; i++) {
+    for (i = 0; i < NUM_ROUND; i += 2) {
         // Key Scheduler
-        k1 = XOR(ADD(SHUFFLE8(k1, *r8), k2), SCALAR(i));
+        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i));
         k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        t1 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, *l8)))));
-        pt2 = pt1;
+        t1 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, l8)))));
+        pt2 = t1;
+        
+         // Key Scheduler
+        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i + 1));
+        k2 = XOR(k1, _ROL(k2, 3));
+
+        // Block Cipher
+        t1 = XOR(k2, XOR(pt1, XOR(_ROL(pt2, 2), AND(_ROL(pt2, 1), SHUFFLE8(pt2, l8)))));
         pt1 = t1;
     }
 
@@ -192,15 +201,15 @@ int main() {
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
-    __m256i r8 = _mm256_set_epi32(
+    r8 = _mm256_set_epi32(
         0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
         0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
-    __m256i l8 = _mm256_set_epi32(
+    l8 = _mm256_set_epi32(
         0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
         0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
 
     for (i = 0; i < BLOCK_SIZE; i += 8) {
-        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i], &r8, &l8);
+        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);
     }
     ///////////////////////////////////////////////////////////////////////////////////////////
 
