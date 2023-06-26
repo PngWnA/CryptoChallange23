@@ -1,12 +1,12 @@
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <stdio.h> 
+#include <string.h> 
+#include <stdint.h> 
+#include <xmmintrin.h> 
+#include <emmintrin.h> 
+#include <immintrin.h> 
 #include <x86intrin.h>
-#include <xmmintrin.h>
+#include <stdlib.h> 
+#include <time.h>
 
 // round of block cipher
 #define NUM_ROUND 80
@@ -91,11 +91,17 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-__m256i r8, l8;
-
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     uint32_t i = 0;
     __m256i k1, k2, pt1, pt2, t1, t2;
+    __m256i r8, l8;
+    r8 = _mm256_set_epi32(
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
+    l8 = _mm256_set_epi32(
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
+
 
     // Load Key
     t1 = LOAD( master_key   );
@@ -146,34 +152,18 @@ int main() {
     int32_t i, j;
 
     // C implementation
-    uint32_t input_C[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
-    uint32_t key_C[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
-    uint32_t session_key_C[BLOCK_SIZE][SESSION_KEY_SIZE] = {
-        0,
-    };
-    uint32_t output_C[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
+    uint32_t input_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t key_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t session_key_C[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
+    uint32_t output_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
 
     // AVX implementation
-    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
-    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
-    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = {
-        0,
-    };
-    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = {
-        0,
-    };
+    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
+    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
 
-    // random generation for plaintext and key.
+    // random generation for plaintext and key. 
     srand(0);
 
     for (i = 0; i < BLOCK_SIZE; i++) {
@@ -183,8 +173,8 @@ int main() {
         }
     }
 
-    // execution of C implementation
-    kcycles = 0;
+    // execution of C implementation 
+    kcycles=0;
     cycles1 = cpucycles();
     for (i = 0; i < BLOCK_SIZE; i++) {
         new_key_gen(key_C[i], session_key_C[i]);
@@ -199,13 +189,6 @@ int main() {
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
-    r8 = _mm256_set_epi32(
-        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
-        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
-    l8 = _mm256_set_epi32(
-        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
-        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
-
     for (i = 0; i < BLOCK_SIZE; i += 8) {
         AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);
     }
