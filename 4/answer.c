@@ -1,4 +1,4 @@
-c#include <emmintrin.h>
+#include <emmintrin.h>
 #include <immintrin.h>
 #include <stdint.h>
 #include <stdio.h>
