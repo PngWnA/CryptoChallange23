@@ -1,10 +1,13 @@
 # 문제에서 주어진 파라미터 세팅
 (lA,eA), (lB,eB) = (2,216), (3,137)
 p = lA^eA * lB^eB - 1  # SIKEp434에서 사용하는 p와 동일
+assert p.is_prime()
 
 # y^2 = x^3 + 6*x^2 + x over Fp^2, i^2 + 1 = 0
 Fp2.<i> = GF(p^2, modulus=x^2+1)
 E0 = EllipticCurve(Fp2, [0,6,0,1,0])
+
+assert E0.is_supersingular()
 
 # Ps
 Ps_x_Re = 0x00003CCFC5E1F050030363E6920A0F7A4C6C71E63DE63A0E6475AF621995705F7C84500CB2BB61E950E19EAB8661D25C4A50ED279646CB48
