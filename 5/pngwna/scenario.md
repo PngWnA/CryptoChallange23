@@ -35,7 +35,7 @@
 ## 1.4. 1.3에서 추출한 비밀번호 활용하여 1.a.7.7z 파일 압축 해제
 * Tool(s): p7zip
 
-* Command: 7z e ./1.a.7.7z
+* Command: `7z e ./1.a.7.7z`
 
 > Note: 명령어 실행 후 비밀번호(#2023$CRYPT@NALY$IS2023#) 입력 필요
 
