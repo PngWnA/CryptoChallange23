@@ -1,15 +1,10 @@
-import sys
+pt = open("../4/4.png", "rb").read()
+ct = open("./enc_4.png", "rb").read()
 
-from Crypto.Cipher import AES
-from Crypto.Util.Counter import new
+keystream = bytearray(x ^ y for x, y in zip(pt, ct))
 
-FILE = open(sys.argv[1], "rb").read()
-KEY = b"RKSIRKPCRJBBKJFK"
-NONCE = b"id:#59mmk35nasd82@2023#"
+ct_5 = open("./enc_5.png", "rb").read()
 
-counter = new(128, initial_value=int.from_bytes(NONCE, byteorder='big'))
-cipher = AES.new(KEY, AES.MODE_CTR, counter=counter)
+pt_5 = bytearray(x ^ y for x, y in zip(keystream, ct_5))
 
-plaintext = cipher.decrypt(FILE)
-
-open(f"dec_{sys.argv[1]}", "wb").write(plaintext)
+open("5.png", "wb").write(pt_5)
