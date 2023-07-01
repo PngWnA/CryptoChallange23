@@ -114,10 +114,6 @@ open("2.out.7z", "wb").write(a[0x2c146:])
 ## 2.5. 파일 복호화 코드 작성 (구현중)
 * Tool(s): python
 
-* Command: `7z e ./2.out.7z`
+* Command: `python decryptor.py $FILENAME`
 
 * Note: README_README.txt 내용 참고하여 복호화코드 작성
-
-* From: 2.out.7z
-
-* To: enc_3.bmp, enc_4.png, enc_5.png, README_README.txt
