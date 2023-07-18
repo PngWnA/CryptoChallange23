@@ -173,7 +173,7 @@ int main() {
     }
 
     // execution of C implementation 
-    kcycles=0;
+    kcycles = 0;
     cycles1 = cpucycles();
     for (i = 0; i < BLOCK_SIZE; i++) {
         new_key_gen(key_C[i], session_key_C[i]);
