@@ -123,7 +123,7 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256
         // Block Cipher
         pt2 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, *l8)))));
 
-         // Key Scheduler
+        // Key Scheduler
         k1 = XOR(ADD(SHUFFLE8(k1, *r8), k2), SCALAR(i | 1));
         k2 = XOR(k1, _ROL(k2, 3));
 

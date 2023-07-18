@@ -121,7 +121,10 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256
         k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        pt2 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, *l8)))));
+        t1 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, *l8)))));
+
+        pt2 = pt1;
+        pt1 = t1;
     }
 
     // Shuffle s.t. elements have same position as one right after Load
