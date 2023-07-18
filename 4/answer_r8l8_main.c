@@ -92,7 +92,7 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256i* r8, __m256i* l8) {
-    uint32_t i = 0;
+    uint32_t i;
     __m256i k1, k2, pt1, pt2, t1, t2;
 
     // Load Key
