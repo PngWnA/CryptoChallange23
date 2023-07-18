@@ -196,6 +196,10 @@ int main() {
         AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i], _r8, _l8);
     }
     ///////////////////////////////////////////////////////////////////////////////////////////
+    cycles2 = cpucycles();
+    kcycles = cycles2 - cycles1;
+    printf("AVX implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
+    printf("\n");
 
     for (i = 0; i < BLOCK_SIZE; i++) {
         for (j = 0; j < P_K_SIZE; j++) {
@@ -205,8 +209,4 @@ int main() {
             }
         }
     }
-    cycles2 = cpucycles();
-    kcycles = cycles2 - cycles1;
-    printf("AVX implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
-    printf("\n");
 }
