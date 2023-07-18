@@ -92,7 +92,7 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256i* r8, __m256i* l8) {
-    uint32_t i;
+    uint32_t i = 0;
     __m256i k1, k2, pt1, pt2, t1, t2;
 
     // Load Key
@@ -115,7 +115,7 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output, __m256
     pt1 = SHUFFLE_2(t1, t2, 0x88);
     pt2 = SHUFFLE_2(t1, t2, 0xdd);
 
-    for (i = 0; i < NUM_ROUND; i += 2) {
+    for (; i < NUM_ROUND; i += 2) {
         // Key Scheduler
         k1 = XOR(ADD(SHUFFLE8(k1, *r8), k2), SCALAR(i));
         k2 = XOR(k1, _ROL(k2, 3));
