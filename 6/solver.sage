@@ -35,7 +35,8 @@ for idx in range(len(s)):
 
 print(f"[*] Recovered e => {e} ({len(e)})")
 
-
+# 풀이 1
+# Gi에서 ns 복구 시도
 print("[*] Recovering ns...")
 for gi in Gi:
     try:
@@ -49,7 +50,7 @@ for gi in Gi:
 
 
 # 풀이 2
-# Gi에서 가는 isogeny 분해
+# Gi를 kernel로 하는 isogeny 분해
 print(f"[*] Recovering phiS...")
 for gi in Gi:
     try:
