@@ -11,7 +11,7 @@ S-Ps = ns*Qs
 
 (참고자료: MOV attack)
 https://www.dima.unige.it/~morafe/MaterialeCTC/p80-menezes.pdf
-https://crypto.stackexchange.com/questions/1871/how-does-the-mov-attack-work
+https://people.cs.nctu.edu.tw/~rjchen/ECC2009/19_MOVattack.pdf
 
 S+Ri로 계산되는 Gi에서 Ri를 다음과 같이 제거할 수 있음
 Gi * 3^137
