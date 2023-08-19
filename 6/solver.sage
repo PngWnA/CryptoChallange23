@@ -41,6 +41,7 @@ print("[*] Recovering ns...")
 for gi in Gi:
     try:
         ns = Qs.discrete_log(gi * (3^137) * inverse_mod(3^137, 2^216) - Ps)
+        print(f"[+] Recovered S => {gi * (3^137) * inverse_mod(3^137, 2^216)}")
         print(f"[+] Recovered ns => {ns}")
         break
     except ValueError:
