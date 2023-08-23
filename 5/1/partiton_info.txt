@@ -1,0 +1,6 @@
+00		    Boot Indicator: Not bootable
+02 03 00	Starting CHS: 0x302
+0C 		    Partition Type: Windows 95 with 32-bit FAT (using LBA-mode INT 13 extensions)
+FE 3F 0B	Ending CHS: 0xB3FFE
+80 00 00 00	Starting LBA: 0x80 (0x10000)
+00 08 03 00	Total Sectors: 0x30800 (101 MB)
