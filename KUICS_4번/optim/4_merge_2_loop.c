@@ -1,12 +1,12 @@
-#include <stdio.h> 
-#include <string.h> 
-#include <stdint.h> 
-#include <xmmintrin.h> 
-#include <emmintrin.h> 
-#include <immintrin.h> 
-#include <x86intrin.h>
-#include <stdlib.h> 
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <x86intrin.h>
+#include <xmmintrin.h>
 
 // round of block cipher
 #define NUM_ROUND 80
@@ -37,6 +37,7 @@
 #define SHUFFLE_2(x, y, i) ((__m256i)_mm256_shuffle_ps(x, y, i))
 #define SHUFFLE32(x, i) _mm256_shuffle_epi32(x, i)
 #define _ROL(x, r) OR(SHIFT_L(x, r), SHIFT_R(x, 32 - r))
+#define _ROR(x, r) OR(SHIFT_R(x, r), SHIFT_L(x, 32 - r))
 
 int64_t cpucycles(void) {
     unsigned int hi, lo;
@@ -45,52 +46,6 @@ int64_t cpucycles(void) {
     return ((int64_t)lo) | (((int64_t)hi) << 32);
 }
 
-// 64-bit data
-// 64-bit key
-// 32-bit x 22 rounds session key
-void new_key_gen(uint32_t* master_key, uint32_t* session_key) {
-    uint32_t i = 0;
-    uint32_t k1, k2, tmp;
-
-    k1 = master_key[0];
-    k2 = master_key[1];
-
-    for (i = 0; i < NUM_ROUND; i++) {
-        k1 = ROR(k1, 8);
-        k1 = k1 + k2;
-        k1 = k1 ^ i;
-        k2 = ROL(k2, 3);
-        k2 = k1 ^ k2;
-        session_key[i] = k2;
-    }
-}
-
-void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) {
-    uint32_t i = 0;
-    uint32_t pt1, pt2, tmp1, tmp2;
-
-    pt1 = input[0];
-    pt2 = input[1];
-
-    for (i = 0; i < NUM_ROUND; i++) {
-        tmp1 = ROL(pt1, 1);
-        tmp2 = ROL(pt1, 8);
-        tmp2 = tmp1 & tmp2;
-        tmp1 = ROL(pt1, 2);
-        tmp2 = tmp1 ^ tmp2;
-        pt2 = pt2 ^ tmp2;
-        pt2 = pt2 ^ session_key[i];
-
-        tmp1 = pt1;
-        pt1 = pt2;
-        pt2 = tmp1;
-    }
-
-    output[0] = pt1;
-    output[1] = pt2;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     uint32_t i = 0;
     __m256i k1, k2, pt1, pt2, t1, t2;
@@ -143,66 +98,37 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     STORE( output   , SHUFFLE32(SHUFFLE_2(pt1, pt2, 0x44), 0xd8));
     STORE(&output[8], SHUFFLE32(SHUFFLE_2(pt1, pt2, 0xee), 0xd8));
 }
-///////////////////////////////////////////////////////////////////////////////////////////
 
 int main() {
     long long int kcycles, ecycles, dcycles;
     long long int cycles1, cycles2;
     int32_t i, j;
 
-    // C implementation
-    uint32_t input_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t key_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t session_key_C[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
-    uint32_t output_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-
     // AVX implementation
-    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
-    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
+    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
+    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = {0,};
+    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
 
-    // random generation for plaintext and key. 
+    // random generation for plaintext and key.
     srand(0);
 
     for (i = 0; i < BLOCK_SIZE; i++) {
         for (j = 0; j < P_K_SIZE; j++) {
-            input_AVX[i][j] = input_C[i][j] = rand();
-            key_AVX[i][j] = key_C[i][j] = rand();
+            input_AVX[i][j] = rand();
+            key_AVX[i][j] = rand();
         }
     }
-
-    // execution of C implementation 
-    kcycles = 0;
-    cycles1 = cpucycles();
-    for (i = 0; i < BLOCK_SIZE; i++) {
-        new_key_gen(key_C[i], session_key_C[i]);
-        new_block_cipher(input_C[i], session_key_C[i], output_C[i]);
-    }
-    cycles2 = cpucycles();
-    kcycles = cycles2 - cycles1;
-    printf("C implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
-    printf("\n");
 
     // KAT and Benchmark test of AVX implementation
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
     for (i = 0; i < BLOCK_SIZE; i += 8) {
-        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);
+        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);  // this is for testing
     }
     ///////////////////////////////////////////////////////////////////////////////////////////
     cycles2 = cpucycles();
     kcycles = cycles2 - cycles1;
-    printf("AVX implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
-    printf("\n");
-
-    for (i = 0; i < BLOCK_SIZE; i++) {
-        for (j = 0; j < P_K_SIZE; j++) {
-            if (output_C[i][j] != output_AVX[i][j]) {
-                printf("Test failed!!!\n");
-                return 0;
-            }
-        }
-    }
+    printf("%lld\n", kcycles / BLOCK_SIZE);
 }

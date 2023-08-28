@@ -91,51 +91,57 @@ void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-uint32_t _i;
-__m256i _k1, _k2, _pt1, _pt2, _t1, _t2;
-__m256i r8, l8;
-
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
+    uint32_t i = 0;
+    __m256i k1, k2, pt1, pt2, t1, t2;
+    __m256i r8, l8;
+    r8 = _mm256_set_epi32(
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
+        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
+    l8 = _mm256_set_epi32(
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
+        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
+
     // Load Key
-    _t1 = LOAD( master_key   );
-    _t2 = LOAD(&master_key[8]);
+    t1 = LOAD( master_key   );
+    t2 = LOAD(&master_key[8]);
 
     // Shuffle s.t. operands are aligned to be processed together
     // k1: first element of each block
     // k2: second element of each block
-    _k1 = SHUFFLE_2(_t1, _t2, 0x88);
-    _k2 = SHUFFLE_2(_t1, _t2, 0xdd);
+    k1 = SHUFFLE_2(t1, t2, 0x88);
+    k2 = SHUFFLE_2(t1, t2, 0xdd);
 
     // Load Plaintext
-    _t1 = LOAD( input );
-    _t2 = LOAD(&input[8]);
+    t1 = LOAD( input );
+    t2 = LOAD(&input[8]);
 
     // Shuffle s.t. operands are aligned to be processed together
     // k1: first element of each block
     // k2: second element of each block
-    _pt1 = SHUFFLE_2(_t1, _t2, 0x88);
-    _pt2 = SHUFFLE_2(_t1, _t2, 0xdd);
+    pt1 = SHUFFLE_2(t1, t2, 0x88);
+    pt2 = SHUFFLE_2(t1, t2, 0xdd);
 
-    for (_i = 0; _i < NUM_ROUND; _i += 2) {
+    for (; i < NUM_ROUND; i += 2) {
         // Key Scheduler
-        _k1 = XOR(ADD(SHUFFLE8(_k1, r8), _k2), SCALAR(_i));
-        _k2 = XOR(_k1, _ROL(_k2, 3));
+        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i));
+        k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        _pt2 = XOR(_k2, XOR(_pt2, XOR(_ROL(_pt1, 2), AND(_ROL(_pt1, 1), SHUFFLE8(_pt1, l8)))));
+        pt2 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, l8)))));
 
-         // Key Scheduler
-        _k1 = XOR(ADD(SHUFFLE8(_k1, r8), _k2), SCALAR(_i | 1));
-        _k2 = XOR(_k1, _ROL(_k2, 3));
+        // Key Scheduler
+        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i + 1));
+        k2 = XOR(k1, _ROL(k2, 3));
 
         // Block Cipher
-        _pt1 = XOR(_k2, XOR(_pt1, XOR(_ROL(_pt2, 2), AND(_ROL(_pt2, 1), SHUFFLE8(_pt2, l8)))));
+        pt1 = XOR(k2, XOR(pt1, XOR(_ROL(pt2, 2), AND(_ROL(pt2, 1), SHUFFLE8(pt2, l8)))));
     }
 
     // Shuffle s.t. elements have same position as one right after Load
     // Store Ciphertext
-    STORE( output   , SHUFFLE32(SHUFFLE_2(_pt1, _pt2, 0x44), 0xd8));
-    STORE(&output[8], SHUFFLE32(SHUFFLE_2(_pt1, _pt2, 0xee), 0xd8));
+    STORE( output   , SHUFFLE32(SHUFFLE_2(pt1, pt2, 0x44), 0xd8));
+    STORE(&output[8], SHUFFLE32(SHUFFLE_2(pt1, pt2, 0xee), 0xd8));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -182,13 +188,6 @@ int main() {
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
-    r8 = _mm256_set_epi32(
-        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
-        0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
-    l8 = _mm256_set_epi32(
-        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003, 
-        0x0e0d0c0f, 0x0a09080b, 0x06050407, 0x02010003);
-
     for (i = 0; i < BLOCK_SIZE; i += 8) {
         AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);
     }

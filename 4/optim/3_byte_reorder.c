@@ -1,12 +1,12 @@
-#include <stdio.h> 
-#include <string.h> 
-#include <stdint.h> 
-#include <xmmintrin.h> 
-#include <emmintrin.h> 
-#include <immintrin.h> 
-#include <x86intrin.h>
-#include <stdlib.h> 
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <x86intrin.h>
+#include <xmmintrin.h>
 
 // round of block cipher
 #define NUM_ROUND 80
@@ -37,6 +37,7 @@
 #define SHUFFLE_2(x, y, i) ((__m256i)_mm256_shuffle_ps(x, y, i))
 #define SHUFFLE32(x, i) _mm256_shuffle_epi32(x, i)
 #define _ROL(x, r) OR(SHIFT_L(x, r), SHIFT_R(x, 32 - r))
+#define _ROR(x, r) OR(SHIFT_R(x, r), SHIFT_L(x, 32 - r))
 
 int64_t cpucycles(void) {
     unsigned int hi, lo;
@@ -45,56 +46,11 @@ int64_t cpucycles(void) {
     return ((int64_t)lo) | (((int64_t)hi) << 32);
 }
 
-// 64-bit data
-// 64-bit key
-// 32-bit x 22 rounds session key
-void new_key_gen(uint32_t* master_key, uint32_t* session_key) {
-    uint32_t i = 0;
-    uint32_t k1, k2, tmp;
-
-    k1 = master_key[0];
-    k2 = master_key[1];
-
-    for (i = 0; i < NUM_ROUND; i++) {
-        k1 = ROR(k1, 8);
-        k1 = k1 + k2;
-        k1 = k1 ^ i;
-        k2 = ROL(k2, 3);
-        k2 = k1 ^ k2;
-        session_key[i] = k2;
-    }
-}
-
-void new_block_cipher(uint32_t* input, uint32_t* session_key, uint32_t* output) {
-    uint32_t i = 0;
-    uint32_t pt1, pt2, tmp1, tmp2;
-
-    pt1 = input[0];
-    pt2 = input[1];
-
-    for (i = 0; i < NUM_ROUND; i++) {
-        tmp1 = ROL(pt1, 1);
-        tmp2 = ROL(pt1, 8);
-        tmp2 = tmp1 & tmp2;
-        tmp1 = ROL(pt1, 2);
-        tmp2 = tmp1 ^ tmp2;
-        pt2 = pt2 ^ tmp2;
-        pt2 = pt2 ^ session_key[i];
-
-        tmp1 = pt1;
-        pt1 = pt2;
-        pt2 = tmp1;
-    }
-
-    output[0] = pt1;
-    output[1] = pt2;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
 void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     uint32_t i = 0;
     __m256i k1, k2, pt1, pt2, t1, t2;
     __m256i r8, l8;
+
     r8 = _mm256_set_epi32(
         0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201, 
         0x0c0f0e0d, 0x080b0a09, 0x04070605, 0x00030201);
@@ -122,7 +78,7 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     pt1 = SHUFFLE_2(t1, t2, 0x88);
     pt2 = SHUFFLE_2(t1, t2, 0xdd);
 
-    for (; i < NUM_ROUND; i += 2) {
+    for (; i < NUM_ROUND; i++) {
         // Key Scheduler
         k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i));
         k2 = XOR(k1, _ROL(k2, 3));
@@ -130,12 +86,9 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
         // Block Cipher
         pt2 = XOR(k2, XOR(pt2, XOR(_ROL(pt1, 2), AND(_ROL(pt1, 1), SHUFFLE8(pt1, l8)))));
 
-        // Key Scheduler
-        k1 = XOR(ADD(SHUFFLE8(k1, r8), k2), SCALAR(i + 1));
-        k2 = XOR(k1, _ROL(k2, 3));
-
-        // Block Cipher
-        pt1 = XOR(k2, XOR(pt1, XOR(_ROL(pt2, 2), AND(_ROL(pt2, 1), SHUFFLE8(pt2, l8)))));
+        t1 = pt1;
+        pt1 = pt2;
+        pt2 = t1;
     }
 
     // Shuffle s.t. elements have same position as one right after Load
@@ -143,66 +96,37 @@ void AVX2_cipher(uint32_t* master_key, uint32_t* input, uint32_t* output) {
     STORE( output   , SHUFFLE32(SHUFFLE_2(pt1, pt2, 0x44), 0xd8));
     STORE(&output[8], SHUFFLE32(SHUFFLE_2(pt1, pt2, 0xee), 0xd8));
 }
-///////////////////////////////////////////////////////////////////////////////////////////
 
 int main() {
     long long int kcycles, ecycles, dcycles;
     long long int cycles1, cycles2;
     int32_t i, j;
 
-    // C implementation
-    uint32_t input_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t key_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t session_key_C[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
-    uint32_t output_C[BLOCK_SIZE][P_K_SIZE] = { 0, };
-
     // AVX implementation
-    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
-    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = { 0, };
-    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = { 0, };
+    uint32_t input_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
+    uint32_t key_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
+    uint32_t session_key_AVX[BLOCK_SIZE][SESSION_KEY_SIZE] = {0,};
+    uint32_t output_AVX[BLOCK_SIZE][P_K_SIZE] = {0,};
 
-    // random generation for plaintext and key. 
+    // random generation for plaintext and key.
     srand(0);
 
     for (i = 0; i < BLOCK_SIZE; i++) {
         for (j = 0; j < P_K_SIZE; j++) {
-            input_AVX[i][j] = input_C[i][j] = rand();
-            key_AVX[i][j] = key_C[i][j] = rand();
+            input_AVX[i][j] = rand();
+            key_AVX[i][j] = rand();
         }
     }
-
-    // execution of C implementation 
-    kcycles = 0;
-    cycles1 = cpucycles();
-    for (i = 0; i < BLOCK_SIZE; i++) {
-        new_key_gen(key_C[i], session_key_C[i]);
-        new_block_cipher(input_C[i], session_key_C[i], output_C[i]);
-    }
-    cycles2 = cpucycles();
-    kcycles = cycles2 - cycles1;
-    printf("C implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
-    printf("\n");
 
     // KAT and Benchmark test of AVX implementation
     kcycles = 0;
     cycles1 = cpucycles();
     ///////////////////////////////////////////////////////////////////////////////////////////
     for (i = 0; i < BLOCK_SIZE; i += 8) {
-        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);
+        AVX2_cipher(key_AVX[i], input_AVX[i], output_AVX[i]);  // this is for testing
     }
     ///////////////////////////////////////////////////////////////////////////////////////////
     cycles2 = cpucycles();
     kcycles = cycles2 - cycles1;
-    printf("AVX implementation runs in ................. %8lld cycles", kcycles / BLOCK_SIZE);
-    printf("\n");
-
-    for (i = 0; i < BLOCK_SIZE; i++) {
-        for (j = 0; j < P_K_SIZE; j++) {
-            if (output_C[i][j] != output_AVX[i][j]) {
-                printf("Test failed!!!\n");
-                return 0;
-            }
-        }
-    }
+    printf("%lld\n", kcycles / BLOCK_SIZE);
 }
